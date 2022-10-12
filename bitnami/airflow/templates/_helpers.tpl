@@ -247,7 +247,9 @@ Add environment variables to configure database values
         {{- .Values.postgresql.auth.username | quote -}}
     {{- end -}}
 {{- else -}}
-    {{- .Values.externalDatabase.user | quote -}}
+    {{- if not .Values.externalDatabase.existingSecretUserKey -}}
+    {{- .Values.externalDatabase.user -}}
+    {{- end -}}
 {{- end -}}
 {{- end -}}
 
@@ -321,8 +323,19 @@ Add environment variables to configure database values
 {{- define "airflow.configure.database" -}}
 - name: AIRFLOW_DATABASE_NAME
   value: {{ include "airflow.database.name" . }}
-- name: AIRFLOW_DATABASE_USERNAME
+- name: AIRFLOW_DATABASE_USERNAME # TODO dérouler tous les cas quand on rentre là dedans
+  {{- if and (not .Values.postgresql.enabled) (not (empty .Values.externalDatabase.existingSecret)) -}}
+      {{- if empty .Values.externalDatabase.existingSecretUserKey -}}
   value: {{ include "airflow.database.user" . }}
+      {{- else -}}
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "airflow.postgresql.secretName" . }} # TODO pas forcément besoin d'un helper pour le nom du secret ici
+      key: {{ include "airflow.database.existingsecret.userKey" . }} # TODO Duppliquer pour User
+      {{- end -}}
+  {{- else -}}
+  value: {{ include "airflow.database.user" . }}
+  {{- end -}}
 - name: AIRFLOW_DATABASE_PASSWORD
   valueFrom:
     secretKeyRef:

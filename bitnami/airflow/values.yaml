@@ -1494,6 +1494,7 @@ externalDatabase:
   database: bitnami_airflow
   password: ""
   existingSecret: ""
+  existingSecretUserKey: ""
   existingSecretPasswordKey: ""
 
 ## Redis&reg; chart configuration
