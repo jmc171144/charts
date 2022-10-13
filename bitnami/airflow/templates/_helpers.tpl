@@ -247,8 +247,19 @@ Add environment variables to configure database values
         {{- .Values.postgresql.auth.username | quote -}}
     {{- end -}}
 {{- else -}}
-    {{- if not .Values.externalDatabase.existingSecretUserKey -}}
-    {{- .Values.externalDatabase.user -}}
+#to refacto (scenario 8.a) --> inverser les if
+    {{- if not (empty .Values.externalDatabase.existingSecretUserKey) -}}
+        {{- if not (empty .Values.externalDatabase.user) -}} #condition if else rajoutée au scenario 9
+        {{- .Values.externalDatabase.user -}}
+        {{- else -}}
+        {{- printf "%s" "postgres" -}}
+        {{- end -}}
+    {{- else -}} #rajouté au scenario 10
+        {{- if not (empty .Values.externalDatabase.user) -}} #condition if else rajoutée au scenario 9
+        {{- .Values.externalDatabase.user -}}
+        {{- else -}}
+        {{- printf "%s" "postgres" -}}
+        {{- end -}}
     {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -275,7 +286,32 @@ Add environment variables to configure database values
 {{/*
 Add environment variables to configure database values
 */}}
-{{- define "airflow.database.existingsecret.key" -}}
+{{- define "airflow.database.existingsecret.userKey" -}} # TATA
+{{- if empty .Values.externalDatabase.existingSecretUserKey -}} / scenario 6
+{{- printf "%s" "password" -}}
+{{- else -}}
+{{ .Values.externalDatabase.existingSecretUserKey | quote }} // Dans le scenario 3 et le scenario 5
+{{- end -}}
+
+{{/*{{- if .Values.postgresql.enabled -}}*/}}
+{{/*    {{- printf "%s" "password" -}}*/}}
+{{/*{{- else -}}*/}}
+{{/*    {{- if .Values.externalDatabase.existingSecret -}}*/}}
+{{/*        {{- if .Values.externalDatabase.existingSecretPasswordKey -}}*/}}
+{{/*            {{- printf "%s" .Values.externalDatabase.existingSecretPasswordKey -}}*/}}
+{{/*        {{- else -}}*/}}
+{{/*            {{- printf "%s" "password" -}}*/}}
+{{/*        {{- end -}}*/}}
+{{/*    {{- else -}}*/}}
+{{/*        {{- printf "%s" "password" -}}*/}}
+{{/*    {{- end -}}*/}}
+{{/*{{- end -}}*/}}
+{{- end -}}
+
+{{/*
+Add environment variables to configure database values
+*/}}
+{{- define "airflow.database.existingsecret.passwordKey" -}}
 {{- if .Values.postgresql.enabled -}}
     {{- printf "%s" "password" -}}
 {{- else -}}
@@ -325,14 +361,18 @@ Add environment variables to configure database values
   value: {{ include "airflow.database.name" . }}
 - name: AIRFLOW_DATABASE_USERNAME # TODO dérouler tous les cas quand on rentre là dedans
   {{- if and (not .Values.postgresql.enabled) (not (empty .Values.externalDatabase.existingSecret)) -}}
+
       {{- if empty .Values.externalDatabase.existingSecretUserKey -}}
   value: {{ include "airflow.database.user" . }}
       {{- else -}}
+
   valueFrom:
     secretKeyRef:
-      name: {{ include "airflow.postgresql.secretName" . }} # TODO pas forcément besoin d'un helper pour le nom du secret ici
-      key: {{ include "airflow.database.existingsecret.userKey" . }} # TODO Duppliquer pour User
+      name: {{ .Values.externalDatabase.existingSecret | quote }}
+      key: {{ include "airflow.database.existingsecret.userKey" . }} # TODO Duppliquer pour User TATA
+
       {{- end -}}
+
   {{- else -}}
   value: {{ include "airflow.database.user" . }}
   {{- end -}}
@@ -340,7 +380,7 @@ Add environment variables to configure database values
   valueFrom:
     secretKeyRef:
       name: {{ include "airflow.postgresql.secretName" . }}
-      key: {{ include "airflow.database.existingsecret.key" . }}
+      key: {{ include "airflow.database.existingsecret.passwordKey" . }}
 - name: AIRFLOW_DATABASE_HOST
   value: {{ include "airflow.database.host" . }}
 - name: AIRFLOW_DATABASE_PORT_NUMBER
